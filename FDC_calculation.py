@@ -168,7 +168,7 @@ def create_FDC_dict_obs(DS: xr.Dataset, number_of_exceedence=1001,
 
 
 def create_FDC_dict_cross_validation(DS: xr.Dataset, flow_variable_name: str = "mod_streamq",
-                                     number_of_exceedence=1001, output_variable_name: str = "FDC",
+                                     number_of_exceedence=1001, output_variable_name: str = "Sim_FDC",
                                      start_year: int = 1972, end_year: int = 2019):
     reaches = DS.rchid.values
     probabilities_FDC = calculate_probabilities(number_of_exceedence)

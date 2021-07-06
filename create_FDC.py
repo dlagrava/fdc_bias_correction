@@ -1,7 +1,5 @@
-import FDC_calculation.FDC_calculation as FDC
-import pandas as pd
+import FDC_calculation as FDC
 import xarray as xr
-import numpy as np
 import argparse
 
 
