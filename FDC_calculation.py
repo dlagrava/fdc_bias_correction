@@ -147,19 +147,20 @@ def create_FDC_dict_obs(DS: xr.Dataset, number_of_exceedence=1001,
     data = []
     print("Calculation of observed FDC")
 
+    good_stations = []
     for station_idx, station_rchid in enumerate(station_rchids):
         print(station_rchid)
 
         flow_values = select_valid_years(DS, station_idx)
         if len(flow_values) > 0:
-            values_FDC = calculate_FDC(probabilities_FDC, flow_values)
+            values_fdc = calculate_FDC(probabilities_FDC, flow_values)
+            data.append(values_fdc)
+            good_stations.append(station_rchid)
         else:
-            values_FDC = np.array([-9999.] * len(probabilities_FDC))
-
-        data.append(values_FDC)
+            print("Ignoring...")
 
     FDC_dict = {
-        'station_rchid': {'dims': ('station',), 'data': station_rchids, "attrs": attrs_station_rchid},
+        'station_rchid': {'dims': ('station',), 'data': good_stations, "attrs": attrs_station_rchid},
         output_variable_name: {'dims': ('station', 'exceed'), 'data': data, 'attrs': attrs_FDC},
         'percentile': {'dims': ('exceed',), 'data': probabilities_FDC, 'attrs': attrs_percentile},
     }
@@ -198,11 +199,11 @@ def create_FDC_dict_cross_validation(DS: xr.Dataset, flow_variable_name: str = "
             print("Flow values variable has a weird number of dimensions: ", dimensions_flow_variable)
             exit(1)
 
-        values_FDC = np.apply_along_axis(lambda values: calculate_FDC(probabilities_FDC, values), axis=0, arr=flow_values)
+        values_FDC = np.apply_along_axis(lambda values: calculate_FDC(probabilities_FDC, values), axis=0,
+                                         arr=flow_values)
         values_FDC = values_FDC.T
         print(values_FDC.shape)
         data.append(values_FDC)
-
 
     FDC_dict = {
         'rchid': {'dims': ('nrch',), 'data': reaches},
