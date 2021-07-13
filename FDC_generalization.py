@@ -1,3 +1,5 @@
+import regression_models
+
 import xarray as xr
 import pandas as pd
 import numpy as np
@@ -20,10 +22,12 @@ def calculate_parameters_fdc(distribution, original_fdc):
     return params
 
 
-def prepare_fdc_for_training(fdc_ds: xr.Dataset, characteristics_df: pd.DataFrame,
-                             method: str, selected_characteristics: list) -> pd.DataFrame:
+def join_data_fdc(fdc_ds: xr.Dataset, characteristics_df: pd.DataFrame,
+                  method: str, selected_characteristics: list, categorical_characteristics: list=[]) -> pd.DataFrame:
     rchids_with_characteristics = characteristics_df.index
     rchids_with_fdc = fdc_ds.station_rchid.values
+
+    selected_characteristics_with_categorical = selected_characteristics.copy()
 
     # down-sampled probabilities
     probabilities_fdc = np.array([0.0001, 0.0003, 0.001, 0.005, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5,
@@ -40,12 +44,23 @@ def prepare_fdc_for_training(fdc_ds: xr.Dataset, characteristics_df: pd.DataFram
     common_reaches = list(sorted(set(rchids_with_characteristics).intersection(rchids_with_fdc)))
     exceedence_rates = fdc_ds.exceed.values
 
-    training_df = pd.DataFrame(index=common_reaches, columns=selected_characteristics + list(columns_result))
+    # Hot encode the categorical characteristics
+    for categorical in categorical_characteristics:
+        # Getting some literal columns
+        hot_encoding = pd.get_dummies(characteristics_df[categorical], prefix=categorical)
+        hot_encoding_cols = list(hot_encoding.columns)
+        characteristics_df = characteristics_df.join(hot_encoding)
+        selected_characteristics_with_categorical += hot_encoding_cols
+
+    training_df = pd.DataFrame(index=common_reaches, columns=selected_characteristics_with_categorical + list(columns_result))
 
     for reach in common_reaches:
-        characteristics_reach = characteristics_df.loc[reach][selected_characteristics]
+        characteristics_reach = characteristics_df.loc[reach][selected_characteristics_with_categorical]
         fdc_idx = np.where(fdc_ds.station_rchid.values == reach)[0][0]
         fdc_reach = fdc_ds.Obs_FDC[fdc_idx, :].values
+        # rescale the values (minus the categorical)
+        fdc_reach = np.log10(fdc_reach/characteristics_df.loc[reach]["uparea"])
+
         if fdc_type == "discrete":
             fdc = resample_fdc(probabilities_fdc, exceedence_rates, fdc_reach)
         else:
@@ -53,7 +68,7 @@ def prepare_fdc_for_training(fdc_ds: xr.Dataset, characteristics_df: pd.DataFram
             fdc = calculate_parameters_fdc(distribution, fdc_reach)
 
         # insert fdc values and characteristics in the resulting df
-        training_df.loc[reach, selected_characteristics] = characteristics_reach
+        training_df.loc[reach, selected_characteristics_with_categorical] = characteristics_reach
         training_df.loc[reach, columns_result] = fdc
 
     return training_df
@@ -83,11 +98,17 @@ def main():
 
     # This is for NIWA data, we need to build CAMELS the same
     selected_characteristics = ["log10_elevation", "usRainDays10", "usPET", "usAnRainVar", "usParticleSize",
-                                         "usAveSlope", "log10_uparea_m2", "CLIMATE"]
-
-    joint_fdc_training = prepare_fdc_for_training(input_fdc_ds, properties_df, method, selected_characteristics)
-    print(joint_fdc_training)
+                                         "usAveSlope", "log10_uparea_m2"]
     categorical_characteristics = ["CLIMATE"]
+
+    joint_fdc_characteristics = join_data_fdc(input_fdc_ds, properties_df, method, selected_characteristics, categorical_characteristics)
+    print(joint_fdc_characteristics)
+
+    joint_fdc_characteristics.to_csv("training_data_fdc.csv")
+
+    # Prepare the data for the ML
+    
+
 
 
 
