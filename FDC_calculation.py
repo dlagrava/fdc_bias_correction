@@ -13,7 +13,7 @@ attrs_year_removed = {'description': 'year removed from to construct the corresp
 
 
 def select_valid_years(input_flow_ds: xr.Dataset, station,
-                       min_valid_years: int = 6, max_missing_days: int = 30,
+                       min_valid_years: int = 6, max_missing_hours: int = 30 * 24,
                        flow_variable_name: str = "river_flow_rate") -> np.ndarray:
     """
     Take an xarray DataSet and select all the data from flow_variable. Calculate the missing data and
@@ -26,7 +26,7 @@ def select_valid_years(input_flow_ds: xr.Dataset, station,
     station:
         The input station
     min_valid_years
-    max_missing_days
+    max_missing_hours
     flow_variable_name
 
     Returns
@@ -42,23 +42,31 @@ def select_valid_years(input_flow_ds: xr.Dataset, station,
     for year in np.arange(start_year, end_year + 1):
         year_slice = slice('%i-01-01' % year, '%i-12-31' % year)
         yearly_data = input_flow_ds.sel(time=year_slice)[flow_variable_name][:, station].to_masked_array()
-        if len(yearly_data) - yearly_data.count() > max_missing_days:
+        if len(yearly_data) - yearly_data.count() > max_missing_hours:
             continue
         if np.count_nonzero(np.where(yearly_data >= 1e+35)) > 0:
             print("Wrong or missing values on the data for year", year)
             continue
 
-        # Remove the 0 values?
+        # Remove all non-valid numbers
         all_data = yearly_data.data[np.where(yearly_data.mask != True)]
-        # TODO: check what to do with the 0 data
-        all_data[all_data <= 0.] = np.min(all_data) * 0.01  # 1% of the all time minimal value
+
+        if np.max(all_data) == 0.:
+            print("Year full of 0s: ", len(all_data))
+            print(all_data)
+            continue
+
+        # Remove the 0 values?
         # all_data = all_data[all_data > 0.] # remove all 0. data
         valid_data += list(all_data)
         valid_years += 1
 
-    # print("Valid years: %i" % valid_years)
+    valid_data = np.array(valid_data)
+
     if valid_years >= min_valid_years:
-        return np.array(valid_data)
+        # Changing 0s to some valid value for logs
+        valid_data[valid_data <= 0.] = np.min(valid_data[valid_data > 0.]) * 0.01  # 1% of the all time minimal value
+        return valid_data
 
     # If we do not have enough data, we return an empty array
     return np.array([])

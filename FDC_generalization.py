@@ -1,4 +1,4 @@
-#import regression_models
+import regression_models
 
 import xarray as xr
 import pandas as pd
@@ -6,6 +6,7 @@ import numpy as np
 import scipy.stats
 from scipy.interpolate import interp1d
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import mean_squared_error
 
 import argparse
 from typing import Sequence, Tuple, Any
@@ -124,6 +125,7 @@ def main():
 
     input_fdc_ds = xr.open_dataset(input_fdc_nc)
     properties_df = pd.read_csv(properties_csv, index_col="rchid")
+    model = method.split("_")[0]
 
     filters = {'GoodSites': True, 'IsWeir': False}
     for k, v in filters.items():
@@ -146,6 +148,17 @@ def main():
     X, Y = joint_fdc_characteristics[all_characteristics_list], joint_fdc_characteristics[all_results_list]
     X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.25, random_state=1)
     print(X_test, Y_test)
+    if model == "rf":
+        regressor = regression_models.create_random_forest_model()
+        regressor.fit(X_train, Y_train)
+    else:
+        regressor = regression_models.create_singleoutputsingle_model(all_characteristics_list, all_results_list)
+        regressor.fit(X_train, Y_train, batch_size=32, epochs=50, verbose=0)
+
+    Y_pred = regressor.predict(X_test)
+    print(Y_pred, Y_test)
+    score = np.sqrt(mean_squared_error(Y_test, Y_pred))
+    print("MSE score: ", score)
 
 
 if __name__ == "__main__":
