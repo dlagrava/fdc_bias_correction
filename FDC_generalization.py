@@ -37,7 +37,7 @@ def resample_fdc(new_probs: np.ndarray, original_probs: np.ndarray, original_fdc
 
 def calculate_parameters_fdc(distribution, original_fdc):
     """
-    Approximate the
+    Approximate a distribution fitting the hydrological time-series.
 
     Parameters
     ----------
@@ -56,7 +56,21 @@ def calculate_parameters_fdc(distribution, original_fdc):
 def join_data_fdc(fdc_ds: xr.Dataset, characteristics_df: pd.DataFrame,
                   method: str, selected_characteristics: Sequence[str],
                   categorical_characteristics: Sequence[str] = []) -> Tuple[pd.DataFrame, Sequence[str], Sequence[str]]:
+    """
+    Prepare a pandas dataframe with characteristics and FDC values
 
+    Parameters
+    ----------
+    fdc_ds
+    characteristics_df
+    method
+    selected_characteristics
+    categorical_characteristics
+
+    Returns
+    -------
+
+    """
     rchids_with_characteristics = characteristics_df.index
     rchids_with_fdc = fdc_ds.station_rchid.values
 
@@ -71,7 +85,7 @@ def join_data_fdc(fdc_ds: xr.Dataset, characteristics_df: pd.DataFrame,
     fdc_type = method.split("_")[1]
     if fdc_type == "parameter":
         distribution = method.split("_")[2]
-        columns_result = ["param0", "param1", "param2"]
+        columns_result = ["distribution", "param0", "param1", "param2"]
 
     # get common reaches
     common_reaches = list(sorted(set(rchids_with_characteristics).intersection(rchids_with_fdc)))
@@ -92,18 +106,20 @@ def join_data_fdc(fdc_ds: xr.Dataset, characteristics_df: pd.DataFrame,
         characteristics_reach = characteristics_df.loc[reach][selected_characteristics_with_categorical]
         fdc_idx = np.where(fdc_ds.station_rchid.values == reach)[0][0]
         fdc_reach = fdc_ds.Obs_FDC[fdc_idx, :].values
-        # rescale the values (minus the categorical)
+
+        # rescale the values (excepting the categorical)
         fdc_reach = np.log10(fdc_reach / characteristics_df.loc[reach]["uparea"])
 
         if fdc_type == "discrete":
             fdc = resample_fdc(probabilities_fdc, exceedence_rates, fdc_reach)
         else:
+            assert False, "This is not working yet" # TODO: fix the calculation to come from the time-series
             assert distribution is not None, "Distribution should not be None"
             fdc = calculate_parameters_fdc(distribution, fdc_reach)
 
         # insert fdc values and characteristics in the resulting df
         training_df.loc[reach, selected_characteristics_with_categorical] = characteristics_reach
-        training_df.loc[reach, columns_result] = fdc
+        training_df.loc[reach, columns_result] = [distribution] + list(fdc)
 
     return training_df, selected_characteristics_with_categorical, columns_result
 
@@ -131,7 +147,7 @@ def main():
     for k, v in filters.items():
         properties_df = properties_df.loc[properties_df[k] == v]
 
-    # This is for NIWA data, we need to build CAMELS the same
+    # This is for NIWA data, CAMELS doesn't have the same...
     selected_characteristics = ["log10_elevation", "usRainDays10", "usPET", "usAnRainVar", "usParticleSize",
                                 "usAveSlope", "log10_uparea_m2"]
     categorical_characteristics = ["CLIMATE"]

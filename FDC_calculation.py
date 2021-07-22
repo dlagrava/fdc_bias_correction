@@ -1,5 +1,6 @@
 import xarray as xr
 import numpy as np
+from utils import select_valid_years
 
 attrs_station_rchid = {"long_name": "REC identifier for the stream reach on which station is located",
                        "valid_min": 0, "valid_max": 2000000000}
@@ -12,75 +13,15 @@ attrs_percentile = {'standard_name': 'Percentile', 'long_name': 'Percentile of e
 attrs_year_removed = {'description': 'year removed from to construct the corresponding FDC'}
 
 
-def select_valid_years(input_flow_ds: xr.Dataset, station,
-                       min_valid_years: int = 6, max_missing_hours: int = 30 * 24,
-                       flow_variable_name: str = "river_flow_rate") -> np.ndarray:
-    """
-    Take an xarray DataSet and select all the data from flow_variable. Calculate the missing data and
-    make sure that we have at least min_valid_years (a complete year is missing less than max_missing_days of data).
-
-    Parameters
-    ----------
-    input_flow_ds: xr.Dataset
-        Input Dataset containing flow_variable
-    station:
-        The input station
-    min_valid_years
-    max_missing_hours
-    flow_variable_name
-
-    Returns
-    -------
-
-    """
-    valid_data = []
-    valid_years = 0
-    start_year = input_flow_ds.time.dt.year.min().values
-    end_year = input_flow_ds.time.dt.year.max().values
-    print(start_year, end_year)
-
-    for year in np.arange(start_year, end_year + 1):
-        year_slice = slice('%i-01-01' % year, '%i-12-31' % year)
-        yearly_data = input_flow_ds.sel(time=year_slice)[flow_variable_name][:, station].to_masked_array()
-        if len(yearly_data) - yearly_data.count() > max_missing_hours:
-            continue
-        if np.count_nonzero(np.where(yearly_data >= 1e+35)) > 0:
-            print("Wrong or missing values on the data for year", year)
-            continue
-
-        # Remove all non-valid numbers
-        all_data = yearly_data.data[np.where(yearly_data.mask != True)]
-
-        if np.max(all_data) == 0.:
-            print("Year full of 0s: ", len(all_data))
-            print(all_data)
-            continue
-
-        # Remove the 0 values?
-        # all_data = all_data[all_data > 0.] # remove all 0. data
-        valid_data += list(all_data)
-        valid_years += 1
-
-    valid_data = np.array(valid_data)
-
-    if valid_years >= min_valid_years:
-        # Changing 0s to some valid value for logs
-        valid_data[valid_data <= 0.] = np.min(valid_data[valid_data > 0.]) * 0.01  # 1% of the all time minimal value
-        return valid_data
-
-    # If we do not have enough data, we return an empty array
-    return np.array([])
-
-
 def calculate_probabilities(number_bins=0, start_prob=0.001, end_prob=.999):
     # Calculate the probabilities for the FDC
     if number_bins == 0:
-        probabilities_FDC = np.array([0.0001, 0.0003, 0.001, 0.005, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5,
+        probabilities_fdc = np.array([0.0001, 0.0003, 0.001, 0.005, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5,
                                       0.6, 0.7, 0.8, 0.9, 0.95, 0.9950, 0.999, 0.9997, 0.9999])
     else:
-        probabilities_FDC = np.linspace(start_prob, end_prob, number_bins)
+        probabilities_fdc = np.linspace(start_prob, end_prob, number_bins)
 
-    return probabilities_FDC
+    return probabilities_fdc
 
 
 def calculate_FDC(probabilities_FDC: np.ndarray, flow_values: np.ndarray):
