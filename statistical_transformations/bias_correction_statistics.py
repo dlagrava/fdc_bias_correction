@@ -1,67 +1,11 @@
+from statistical_transformations.utils import NSE, KGE, pBias
+
 import matplotlib.pyplot as plt
-import scipy.stats
 import xarray as xr
 import numpy as np
 
 import argparse
 import os
-
-
-def NSE(modelled_values, observed_values):
-    """
-    Nash-Sutcliffe Efficiency (NSE) as per formula found on several papers
-
-    Parameters
-    ----------
-    modelled_values
-    observed_values
-
-    Returns
-    -------
-
-    """
-    mean_obs = np.mean(observed_values)
-    return 1 - np.sum((modelled_values - observed_values) ** 2) / np.sum((observed_values - mean_obs) ** 2)
-
-
-def KGE(modelled_values, observed_values):
-    """
-    Kling-Gupta Efficiency (KGE) as per formula found on
-    https://hess.copernicus.org/preprints/hess-2019-327/hess-2019-327.pdf
-
-    Parameters
-    ----------
-    modelled_values
-    observed_values
-
-    Returns
-    -------
-
-    """
-    mean_obs = np.mean(observed_values)
-    mean_mod = np.mean(modelled_values)
-    std_obs = np.std(observed_values)
-    std_mod = np.std(modelled_values)
-    pearson_correlation, _ = scipy.stats.pearsonr(modelled_values, observed_values)
-
-    return 1 - np.sqrt(
-        (pearson_correlation - 1.) ** 2 + (std_mod / std_obs - 1.) ** 2 + (mean_mod / mean_obs - 1.) ** 2)
-
-
-def pBias(modelled_values, observed_values):
-    """
-    Percentual Bias (pBias) calculation. It expresses how we over or under-predict with the modelled values.
-
-    Parameters
-    ----------
-    modelled_values
-    observed_values
-
-    Returns
-    -------
-
-    """
-    return np.sum(observed_values - modelled_values) * 100. / sum(observed_values)
 
 
 def parse_args():
