@@ -1,5 +1,7 @@
-import quantile_mapping_utils as QQ
-import fdc_utils as FDC
+#! /bin/env python
+
+import statistical_transformations.quantile_mapping_utils as QQ
+import statistical_transformations.fdc_utils as FDC
 import xarray as xr
 import argparse
 

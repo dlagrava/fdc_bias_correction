@@ -1,3 +1,5 @@
+#! /bin/env python
+
 from statistical_transformations.utils import get_common_reaches
 
 import matplotlib.pyplot as plt

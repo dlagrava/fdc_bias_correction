@@ -1,5 +1,7 @@
+#! /bin/env python
+
 from statistical_transformations.utils import add_observations_to_ds
-import bias_correction_utils
+import statistical_transformations.bias_correction_utils as bias_correction_utils
 
 import argparse
 

@@ -1,3 +1,5 @@
+#! /bin/env python
+
 from statistical_transformations.utils import NSE, KGE, pBias
 
 import matplotlib.pyplot as plt

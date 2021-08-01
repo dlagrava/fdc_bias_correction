@@ -1,4 +1,6 @@
-import regression_models
+#! /bin/env python
+
+import statistical_transformations.regression_models as regression_models
 
 import xarray as xr
 import pandas as pd

@@ -1,6 +1,6 @@
 import xarray as xr
 import numpy as np
-from utils import select_valid_years
+from .utils import select_valid_years
 
 attrs_station_rchid = {"long_name": "REC identifier for the stream reach on which station is located",
                        "valid_min": 0, "valid_max": 2000000000}
