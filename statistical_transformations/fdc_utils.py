@@ -1,7 +1,10 @@
+import pandas as pd
+
 from .utils import select_valid_years
 
 import xarray as xr
 import numpy as np
+import scipy.stats
 
 attrs_station_rchid = {"long_name": "REC identifier for the stream reach on which station is located",
                        "valid_min": 0, "valid_max": 2000000000}
@@ -23,6 +26,28 @@ def calculate_probabilities(number_bins=0, start_prob=0.001, end_prob=.999):
         probabilities_fdc = np.linspace(start_prob, end_prob, number_bins)
 
     return probabilities_fdc
+
+
+def convert_parameter_based_to_discrete(distribution_name: str, parameters: np.ndarray, probabilities: np.ndarray):
+    """
+
+
+    Parameters
+    ----------
+    distribution_name
+    parameters
+    probabilities
+
+    Returns
+    -------
+
+    """
+    assert len(parameters) == 3, "We only support 3 parameter distributions yet."
+    distribution = getattr(scipy.stats, distribution_name)
+    rv = distribution(parameters[0], parameters[1], parameters[2])
+    fdc = rv.ppf(1. - probabilities)
+
+    return fdc
 
 
 def calculate_FDC(probabilities_FDC: np.ndarray, flow_values: np.ndarray):
@@ -88,13 +113,34 @@ def create_FDC_dict_sim(DS: xr.Dataset, number_of_exceedence=1001, output_variab
     return FDC_dict
 
 
-def create_FDC_dict_obs(DS: xr.Dataset, number_of_exceedence=1001,
-                        output_variable_name: str = "Obs_FDC"):
-    station_rchids = DS.station_rchid.values.astype(int)
+def create_FDC_dict_obs(DS: xr.Dataset, number_of_exceedence=1001, output_variable_name: str = "Obs_FDC",
+                        characteristics=""):
+    """
 
+
+    Parameters
+    ----------
+    characteristics
+    distribution
+    DS
+    number_of_exceedence
+    output_variable_name
+    distribution
+
+    Returns
+    -------
+
+    """
+    station_rchids = DS.station_rchid.values.astype(int)
+    parameter_based_distributions = ["lognorm", "genextreme"]
     probabilities_FDC = calculate_probabilities(number_of_exceedence)
 
+    characteristics_df = None
+    if characteristics != "":
+        characteristics_df = pd.read_csv(characteristics, index_col="rchid")
+
     data = []
+    distributions_parameters = {dist: [] for dist in parameter_based_distributions}
     print("Calculation of observed FDC")
 
     good_stations = []
@@ -104,6 +150,20 @@ def create_FDC_dict_obs(DS: xr.Dataset, number_of_exceedence=1001,
         flow_values = select_valid_years(DS, station_idx)
         if len(flow_values) > 0:
             values_fdc = calculate_FDC(probabilities_FDC, flow_values)
+
+            if characteristics_df is not None:
+                try:
+                    catchment_uparea = characteristics_df.loc[station_rchid, "uparea"]
+                except KeyError:
+                    print("Area for reach not available, ignoring it")
+                    continue
+
+                flow_values = np.log10(flow_values / catchment_uparea)
+                for distribution in distributions_parameters:
+                    dist = getattr(scipy.stats, distribution)
+                    params = dist.fit(flow_values)
+                    distributions_parameters[distribution].append(params)
+
             data.append(values_fdc)
             good_stations.append(station_rchid)
         else:
@@ -114,6 +174,15 @@ def create_FDC_dict_obs(DS: xr.Dataset, number_of_exceedence=1001,
         output_variable_name: {'dims': ('station', 'exceed'), 'data': data, 'attrs': attrs_FDC},
         'percentile': {'dims': ('exceed',), 'data': probabilities_FDC, 'attrs': attrs_percentile},
     }
+
+    for distribution in parameter_based_distributions:
+        FDC_dict["{}_{}".format(output_variable_name, distribution)] = {
+            'dims': ('station', 'parameters'), 'data': distributions_parameters[distribution], 'attrs': {
+                "description": '{} parameters to fit log10 flow data divided by catchment area'.format(distribution),
+                "units": "log10(m3/s/km2)",
+                "name": distribution
+            }
+        }
 
     return FDC_dict
 

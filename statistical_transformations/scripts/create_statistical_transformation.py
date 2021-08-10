@@ -19,6 +19,7 @@ def parse_arguments():
                         help="Number of bins for the statistical transformation (exceedance or quantiles)")
     parser.add_argument("-method", choices=["FDC", "QM"], default="FDC")
     parser.add_argument("-cross_validation", action="store_true")
+    parser.add_argument("-characteristics", type=str, default="")
     parser.set_defaults(cross_validation=False)
     return parser.parse_args()
 
@@ -30,6 +31,7 @@ def main():
     output_file_name = args.output_file_name
     number_of_values = args.number_of_values
     cross_validation = args.cross_validation
+    characteristics = args.characteristics
     method = args.method
 
     result_dictionary = {}
@@ -59,7 +61,9 @@ def main():
         if method == "QM":
             dictionary_obs = QQ.create_quantile_dict_obs(observed_ds, number_of_quantiles=number_of_values)
         elif method == "FDC":
-            dictionary_obs = FDC.create_FDC_dict_obs(observed_ds, number_of_exceedence=number_of_values)
+            dictionary_obs = FDC.create_FDC_dict_obs(observed_ds, number_of_exceedence=number_of_values,
+                                                     characteristics=characteristics)
+
 
         result_dictionary.update(dictionary_obs)
 

@@ -37,10 +37,10 @@ def _remove_bias_flow_fdc(flow_values, simulated_fdc_probs, simulated_fdc, obser
     # Get the probability of flow_value on the simulation
 
     exceedance_simulated = interp1d(simulated_fdc[::-1], simulated_fdc_probs[::-1],
-                                    kind='slinear', fill_value='extrapolate')(flow_values)
+                                    kind='cubic', fill_value='extrapolate')(flow_values)
     # With that exceedance, compute the observed flow value
     bias_corrected_flow_values = interp1d(observed_fdc_probs, observed_fdc,
-                                          kind='slinear', fill_value='extrapolate')(exceedance_simulated)
+                                          kind='cubic', fill_value='extrapolate')(exceedance_simulated)
     return bias_corrected_flow_values
 
 

@@ -7,8 +7,9 @@ import pandas as pd
 import numpy as np
 import scipy.stats
 from scipy.interpolate import interp1d
-from sklearn.model_selection import train_test_split
+import sklearn.model_selection
 from sklearn.metrics import mean_squared_error
+import matplotlib.pyplot as plt
 
 import argparse
 from typing import Sequence, Tuple, Any
@@ -33,7 +34,13 @@ def resample_fdc(new_probs: np.ndarray, original_probs: np.ndarray, original_fdc
 
     """
     new_fdc = interp1d(original_probs, original_fdc,
-                       kind='slinear', fill_value='extrapolate')(new_probs)
+                       kind='cubic', fill_value='extrapolate')(new_probs)
+
+    # print(original_probs, new_probs)
+    # plt.plot(new_probs, new_fdc, label="New")
+    # plt.plot(original_probs, original_fdc, linestyle="--", label="Orig")
+    # plt.legend()
+    # plt.show()
     return new_fdc
 
 
@@ -91,7 +98,7 @@ def join_data_fdc(fdc_ds: xr.Dataset, characteristics_df: pd.DataFrame,
 
     # get common reaches
     common_reaches = list(sorted(set(rchids_with_characteristics).intersection(rchids_with_fdc)))
-    exceedence_rates = fdc_ds.exceed.values
+    exceedence_rates = fdc_ds.percentile.values
 
     # Hot encode the categorical characteristics
     for categorical in categorical_characteristics:
@@ -109,7 +116,7 @@ def join_data_fdc(fdc_ds: xr.Dataset, characteristics_df: pd.DataFrame,
         fdc_idx = np.where(fdc_ds.station_rchid.values == reach)[0][0]
         fdc_reach = fdc_ds.Obs_FDC[fdc_idx, :].values
 
-        # rescale the values (excepting the categorical)
+        # rescale the values
         fdc_reach = np.log10(fdc_reach / characteristics_df.loc[reach]["uparea"])
 
         if fdc_type == "discrete":
@@ -124,12 +131,31 @@ def join_data_fdc(fdc_ds: xr.Dataset, characteristics_df: pd.DataFrame,
     return training_df, selected_characteristics_with_categorical, columns_result
 
 
+def plot_FDC(rchid: int, x: Sequence[str], y_test, y_pred, output_dir=".", score=None):
+    x = np.array(list(map(float, x)))
+    plt.figure(figsize=(10, 8))
+    plt.plot(x, y_test.iloc[0].values, label="original")
+    plt.plot(x, y_pred[0], label="estimated")
+    if score is not None:
+        plt.text(0.7, -0.5, "MSE={:.3f}".format(score), fontsize=14)
+    plt.legend()
+    plt.xlabel("Exceedance")
+    plt.ylabel("Flow log10(m3/s/km2)")
+    plt.title("Reach: {}".format(rchid))
+    # plt.show()
+    plt.savefig("{}/FDC_estimated_{}.png".format(output_dir, rchid))
+    plt.close()
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("input_fdc_nc")
     parser.add_argument("properties_csv")
     parser.add_argument("method", choices=["rf_discrete", "mnn_discrete",
                                            "rf_parameter_genextreme", "rf_parameter_lognorm"])
+    parser.add_argument("-output_training_data", help="Output file containing predictors and prediction for training",
+                        default="training_data.csv")
+    parser.add_argument("-output_dir", help="Directory that will contain the results", default=".")
     return parser.parse_args()
 
 
@@ -137,12 +163,19 @@ def main():
     args = parse_args()
     input_fdc_nc = args.input_fdc_nc
     properties_csv = args.properties_csv
+    output_joint_training_csv = args.output_training_data
+    output_dir = args.output_dir
     method = args.method
 
     input_fdc_ds = xr.open_dataset(input_fdc_nc)
     properties_df = pd.read_csv(properties_csv, index_col="rchid")
     model = method.split("_")[0]
     fdc_type = method.split("_")[1]
+
+    try:
+        distribution = method.split("_")[2]
+    except IndexError:
+        distribution = None
 
     filters = {'GoodSites': True, 'IsWeir': False}
     for k, v in filters.items():
@@ -159,26 +192,51 @@ def main():
                                                                                           categorical_characteristics)
     print(joint_fdc_characteristics)
 
-    joint_fdc_characteristics.to_csv("training_data_fdc_{}.csv".format(method))
+    joint_fdc_characteristics.to_csv(output_joint_training_csv)
 
     # Prepare the data for the ML
     X, Y = joint_fdc_characteristics[all_characteristics_list], joint_fdc_characteristics[all_results_list]
+    cv = sklearn.model_selection.LeaveOneOut()
     if fdc_type == "parameter":
         Y.drop(columns="distribution", inplace=True)
 
-    X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.25, random_state=1)
-    print(X_test, Y_test)
-    if model == "rf":
-        regressor = regression_models.create_random_forest_model()
-        regressor.fit(X_train, Y_train)
-    else:
-        regressor = regression_models.create_singleoutputsingle_model(all_characteristics_list, all_results_list)
-        regressor.fit(X_train, Y_train, batch_size=32, epochs=50, verbose=0)
+    estimated_fdc_csv = joint_fdc_characteristics[all_results_list].copy()
 
-    Y_pred = regressor.predict(X_test)
-    print(Y_pred, Y_test)
-    score = np.sqrt(mean_squared_error(Y_test, Y_pred))
-    print("MSE score: ", score)
+    for train_index, test_index in cv.split(X.index):
+        print(test_index)
+
+        X_train, X_test = X.iloc[train_index], X.iloc[test_index]
+        Y_train, Y_test = Y.iloc[train_index], Y.iloc[test_index]
+        rchid = X_test.index.values[0]
+        print(rchid)
+        other_arguments = {}
+        if model == "rf":
+            regressor = regression_models.create_random_forest_model()
+        else:
+            other_arguments = {'batch_size': 32, 'epochs': 50, 'verbose': 0}
+            regressor = regression_models.create_singleoutputsingle_model(all_characteristics_list, all_results_list)
+
+        regressor.fit(X_train, Y_train, **other_arguments)
+        Y_pred = regressor.predict(X_test)
+        score = np.sqrt(mean_squared_error(Y_test, Y_pred))
+        print("MSE score: ", score)
+
+        if fdc_type == "discrete":
+            plot_FDC(rchid, all_results_list, y_test=Y_test, y_pred=Y_pred, output_dir=output_dir, score=score)
+        else:
+            print(Y_pred, Y_test)
+
+        if fdc_type == "parameter":
+            estimated_fdc_csv.loc[rchid, :] = [distribution] + list(Y_pred[0])
+            continue
+
+        estimated_fdc_csv.loc[rchid, :] = Y_pred[0]
+
+    # TODO: create a netcdf file that has the same format as the FDC one, but this time it has the prediction
+    if fdc_type == "parameter":
+        estimated_fdc_csv["distribution"] = distribution
+
+    estimated_fdc_csv.to_csv("estimated_fdc_{}".format(method))
 
 
 if __name__ == "__main__":
