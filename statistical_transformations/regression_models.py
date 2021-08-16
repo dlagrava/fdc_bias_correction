@@ -12,6 +12,19 @@ from tensorflow.keras import layers
 
 
 def create_multioutput_model(input_cols, output_cols):
+    """
+    This creates a MNN model as per Worland et al. 2019. It uses non negative weights to
+    force the monotonic nature of FDC.
+
+    Parameters
+    ----------
+    input_cols
+    output_cols
+
+    Returns
+    -------
+
+    """
     # Defining the model
     characteristics_input = keras.Input(shape=(len(input_cols)), name="characteristics")
     x = layers.Dense(35, activation="relu")(characteristics_input)
@@ -40,6 +53,18 @@ def create_multioutput_model(input_cols, output_cols):
 
 
 def create_singleoutputsingle_model(input_cols, output_cols):
+    """
+    Similar to the MNN but it outputs a single vector for the FDC.
+
+    Parameters
+    ----------
+    input_cols
+    output_cols
+
+    Returns
+    -------
+
+    """
     # Defining the model
     characteristics_input = keras.Input(shape=(len(input_cols)), name="characteristics")
     x = layers.Dense(35, activation="relu")(characteristics_input)
@@ -65,10 +90,30 @@ def create_singleoutputsingle_model(input_cols, output_cols):
 
 
 def create_random_forest_model(n_estimators=500, max_depth=5, criterion='mae'):
+    """
+    Random forest model
+
+    Parameters
+    ----------
+    n_estimators
+    max_depth
+    criterion
+
+    Returns
+    -------
+
+    """
     return sklearn.ensemble.RandomForestRegressor(n_estimators=n_estimators, max_depth=max_depth, criterion=criterion,
                                                   n_jobs=8)
 
 
 def create_XGBoost_model():
+    """
+    This creates an XGBoost model
+
+    Returns
+    -------
+
+    """
     model = sklearn.ensemble.GradientBoostingRegressor(n_estimators=300, learning_rate=0.05)
     return sklearn.multioutput.RegressorChain(model)
