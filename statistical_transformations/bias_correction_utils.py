@@ -60,11 +60,21 @@ def _remove_bias_flow_qq(flow_values, simulated_quantiles, observed_quantiles):
 
     """
     bias_corrected_flow_values = interp1d(simulated_quantiles, observed_quantiles,
-                                          kind='slinear', fill_value='extrapolate')(flow_values)
+                                          kind='cubic', fill_value='extrapolate')(flow_values)
     return bias_corrected_flow_values
 
 
 def get_statistical_transformation_available(stat_transformation_ds):
+    """
+
+    Parameters
+    ----------
+    stat_transformation_ds
+
+    Returns
+    -------
+
+    """
     statistical_transformation_type = ""
     if "Sim_FDC" in stat_transformation_ds.variables and "Obs_FDC" in stat_transformation_ds.variables:
         statistical_transformation_type = "FDC"
@@ -76,6 +86,21 @@ def get_statistical_transformation_available(stat_transformation_ds):
 
 def bias_correction_all_time(simulation_ds: xr.Dataset, stat_transformation_ds: xr.Dataset,
                              start_year=1972, end_year=2019):
+    """
+    This function is a wrapper to select the available transformation in the simulation dataset. If the FDC
+    is available, we will use Farmer et al. 2018. Otherwise, we use quantile mapping.
+
+    Parameters
+    ----------
+    simulation_ds
+    stat_transformation_ds
+    start_year
+    end_year
+
+    Returns
+    -------
+
+    """
     flow_variable = "mod_streamq"
     time_slice = slice('%i-01-01' % start_year, '%i-12-31' % end_year)
     reduced_ds = simulation_ds.sel(time=time_slice)

@@ -7,21 +7,38 @@ import matplotlib.pyplot as plt
 import xarray as xr
 import numpy as np
 
-from typing import List
 import argparse
 import os
 
 
-def plot_all_common_reaches(input_ds: xr.Dataset, characteristics_df: pd.DataFrame,
+def plot_all_reaches(input_ds: xr.Dataset, characteristics_df: pd.DataFrame,
                             distribution: str, output_dir: str = "."):
+    """
+    Plottign utility that will plot both the original discretized FDC and the values out of the parameter-based
+    FDC
+
+    Parameters
+    ----------
+    input_ds: xr.Dataset
+        Input dataset, which should contian the variables Obs_FDC and Obs_FDC_<distribution>
+    characteristics_df: pd.DataFrame
+        Dataframe indexed by reach id and containing at least upstream (ie., upstream area)
+    distribution: str
+        A valid distribution. The parameter-based FDC were calculated for lognorm and genextreme
+    output_dir: str
+        Where to put all the plots.
+
+    Returns
+    -------
+    None
+
+    """
     common_reaches = get_common_reaches(input_ds)
-    rchid = input_ds.rchid.values
     station_rchid = input_ds.station_rchid.values
 
     exceedance_values = input_ds.percentile.values
 
     for reach in common_reaches:
-        idx_rchid = np.where(rchid == reach)[0][0]
         idx_station_rchid = np.where(station_rchid == reach)[0][0]
 
         obs_fdc = input_ds.Obs_FDC[idx_station_rchid, :].values
@@ -43,7 +60,6 @@ def plot_all_common_reaches(input_ds: xr.Dataset, characteristics_df: pd.DataFra
 
         plt.savefig("{}/comparison_discrete_parameter_FDC_{}.png".format(output_dir, reach))
         plt.close()
-
 
 
 def parse_args():
@@ -68,7 +84,7 @@ def main():
     fdc_ds = xr.open_dataset(input_fdc_nc)
     characteristics_df = pd.read_csv(properties_csv, index_col="rchid")
 
-    plot_all_common_reaches(fdc_ds, characteristics_df, distribution, output_dir=output_dir)
+    plot_all_reaches(fdc_ds, characteristics_df, distribution, output_dir=output_dir)
 
 
 if __name__ == "__main__":
