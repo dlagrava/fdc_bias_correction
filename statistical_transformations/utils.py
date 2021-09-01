@@ -28,7 +28,6 @@ def select_valid_years(input_flow_ds: xr.Dataset, station,
     valid_years = 0
     start_year = input_flow_ds.time.dt.year.min().values
     end_year = input_flow_ds.time.dt.year.max().values
-    print(start_year, end_year)
 
     for year in np.arange(start_year, end_year + 1):
         year_slice = slice('%i-01-01' % year, '%i-12-31' % year)

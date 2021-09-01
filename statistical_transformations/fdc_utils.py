@@ -6,6 +6,8 @@ import xarray as xr
 import numpy as np
 import scipy.stats
 
+from typing import Dict
+
 attrs_station_rchid = {"long_name": "REC identifier for the stream reach on which station is located",
                        "valid_min": 0, "valid_max": 2000000000}
 attrs_rchid = {'long_name': 'identifier of selected reaches (REC)'}
@@ -50,7 +52,7 @@ def convert_parameter_based_to_discrete(distribution_name: str, parameters: np.n
     return fdc
 
 
-def calculate_FDC(probabilities_FDC: np.ndarray, flow_values: np.ndarray):
+def calculate_FDC(probabilities_FDC: np.ndarray, flow_values: np.ndarray) -> np.ndarray:
     """
     The actual calculation from the FDC from a list containing flow values. The values are sorted,
     and then the probabilities for each one are calculated using the Weibull plotting position. Finally,
@@ -64,6 +66,7 @@ def calculate_FDC(probabilities_FDC: np.ndarray, flow_values: np.ndarray):
 
     Returns
     -------
+    np.ndarray
 
     """
     sorted_flow_values = np.sort(flow_values)[::-1]
@@ -87,11 +90,12 @@ def create_FDC_dict_sim(DS: xr.Dataset, number_of_exceedence=1001, output_variab
 
     print("Calculation of simulated FDC")
     data = []
+    dimensions_flow_variable = len(DS.variables[flow_variable_name].dims)
     for idx, reach_id in enumerate(reaches):
         print(reach_id)
-        dimensions_flow_variable = len(DS.variables[flow_variable_name].dims)
 
         flow_values = np.ndarray([])
+        # The following test was added to possibly deal with CAMELS and CAMELS-UK data
         if dimensions_flow_variable == 2:
             flow_values = DS.variables[flow_variable_name][:, idx].values
         elif dimensions_flow_variable == 4:
@@ -133,7 +137,7 @@ def create_FDC_dict_obs(DS: xr.Dataset, number_of_exceedence=1001, output_variab
     """
     station_rchids = DS.station_rchid.values.astype(int)
     parameter_based_distributions = ["lognorm", "genextreme"]
-    probabilities_FDC = calculate_probabilities(number_of_exceedence)
+    probabilities_fdc = calculate_probabilities(number_of_exceedence)
 
     characteristics_df = None
     if characteristics != "":
@@ -149,7 +153,7 @@ def create_FDC_dict_obs(DS: xr.Dataset, number_of_exceedence=1001, output_variab
 
         flow_values = select_valid_years(DS, station_idx)
         if len(flow_values) > 0:
-            values_fdc = calculate_FDC(probabilities_FDC, flow_values)
+            values_fdc = calculate_FDC(probabilities_fdc, flow_values)
 
             if characteristics_df is not None:
                 try:
@@ -172,7 +176,7 @@ def create_FDC_dict_obs(DS: xr.Dataset, number_of_exceedence=1001, output_variab
     FDC_dict = {
         'station_rchid': {'dims': ('station',), 'data': good_stations, "attrs": attrs_station_rchid},
         output_variable_name: {'dims': ('station', 'exceed'), 'data': data, 'attrs': attrs_FDC},
-        'percentile': {'dims': ('exceed',), 'data': probabilities_FDC, 'attrs': attrs_percentile},
+        'percentile': {'dims': ('exceed',), 'data': probabilities_fdc, 'attrs': attrs_percentile},
     }
 
     for distribution in parameter_based_distributions:
@@ -246,3 +250,100 @@ def create_FDC_dict_cross_validation(DS: xr.Dataset, flow_variable_name: str = "
         'year_removed': {'dims': ('year',), 'data': range(start_year, end_year + 1), 'attrs': attrs_year_removed}
     }
     return FDC_dict
+
+
+def create_FDC_dict_sim_seasonal(simulated_ds: xr.Dataset, number_of_exceedence=1001,
+                                 output_variable_name: str = "Sim_FDC", characteristics: str = "") -> Dict:
+    station_rchids = simulated_ds.rchid.values.astype(int)
+    characteristics_df = None
+    if characteristics != "":
+        characteristics_df = pd.read_csv(characteristics, index_col="rchid")
+
+    probabilities_fdc = calculate_probabilities(number_of_exceedence)
+    print("Calculation of simulated FDC (Seasonal)")
+    seasonal_idx = simulated_ds.groupby('time.season')
+    print(seasonal_idx)
+    flow_variable_name = "mod_streamq"
+
+    available_reaches = simulated_ds.coords["nrch"]
+
+    data = np.zeros((len(available_reaches), len(probabilities_fdc), 4))
+    for i_rchid, rchid in enumerate(available_reaches):
+        reach_id = int(station_rchids[rchid])
+        print(reach_id)
+
+        flow_values = simulated_ds.variables[flow_variable_name][:, i_rchid, 0, 0].values
+        values_FDC = calculate_FDC(probabilities_fdc, flow_values)
+
+        # Divide the data seasonally
+        for i_season, season in enumerate(seasonal_idx.groups):
+            all_values_season = simulated_ds[flow_variable_name][:, rchid].isel(
+                time=seasonal_idx.groups[season]).to_masked_array()
+            all_values_season = all_values_season.data[np.where(all_values_season.mask != True)]
+
+            # Construct the seasonal FDC
+            values_fdc = calculate_FDC(probabilities_fdc, all_values_season)
+            data[i_rchid, :, i_season] = values_fdc
+
+    FDC_dict = {
+        'rchid': {'dims': ('station',), 'data': station_rchids, 'attrs': attrs_station_rchid},
+        output_variable_name: {'dims': ('station', 'exceed', 'season'), 'data': data, 'attrs': attrs_FDC},
+        'percentile': {'dims': ('exceed',), 'data': probabilities_fdc, 'attrs': attrs_percentile},
+        'seasons': {'dims': ('season',), 'data': ['DJF', 'MAM', 'JJA', 'SON'], 'attrs': {}}
+    }
+
+    return FDC_dict
+
+
+def create_FDC_dict_sim_monthly(simulated_ds, number_of_exceedence) -> Dict:
+    return {}
+
+
+def create_FDC_dict_obs_seasonal(observed_ds: xr.Dataset, number_of_exceedence=1001,
+                                 output_variable_name: str = "Obs_FDC_seasonal",
+                                 characteristics="") -> Dict:
+    station_rchids = observed_ds.station_rchid.values.astype(int)
+    characteristics_df = None
+    if characteristics != "":
+        characteristics_df = pd.read_csv(characteristics, index_col="rchid")
+
+    probabilities_fdc = calculate_probabilities(number_of_exceedence)
+    print("Calculation of observed FDC (Seasonal)")
+    seasonal_idx = observed_ds.groupby('time.season')
+    print(seasonal_idx)
+    selected_variable = "river_flow_rate"
+    available_stations = observed_ds.coords["station"]
+
+    data = np.zeros((len(available_stations), len(probabilities_fdc), 4))
+    for i_station, station in enumerate(available_stations):
+        reach_id = int(station_rchids[station])
+        print(reach_id)
+        # Check if the site passes the check for minimal data content
+        flow_values = select_valid_years(observed_ds, station)
+        if len(flow_values) == 0:
+            print("{}: not enough values to construct the FDC. Ignoring".format(reach_id))
+            data[i_station, :, :] = np.nan
+            continue
+
+        # Divide the data seasonally
+        for i_season, season in enumerate(seasonal_idx.groups):
+            all_values_season = observed_ds[selected_variable][:, station].isel(
+                time=seasonal_idx.groups[season]).to_masked_array()
+            all_values_season = all_values_season.data[np.where(all_values_season.mask != True)]
+
+            # Construct the seasonal FDC
+            values_fdc = calculate_FDC(probabilities_fdc, all_values_season)
+            data[i_station, :, i_season] = values_fdc
+
+    FDC_dict = {
+        'rchid': {'dims': ('station',), 'data': station_rchids, 'attrs': attrs_station_rchid},
+        output_variable_name: {'dims': ('station', 'exceed', 'season'), 'data': data, 'attrs': attrs_FDC},
+        'percentile': {'dims': ('exceed',), 'data': probabilities_fdc, 'attrs': attrs_percentile},
+        'seasons': {'dims': ('season',), 'data': ['DJF', 'MAM', 'JJA', 'SON'], 'attrs': {}}
+    }
+
+    return FDC_dict
+
+
+def create_FDC_dict_obs_monthly(observed_ds, number_of_exceedence, characteristics) -> Dict:
+    return {}
