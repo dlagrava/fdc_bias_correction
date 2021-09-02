@@ -43,8 +43,8 @@ def main():
     obs_stat_transformation_ds = xr.open_dataset(obs_stat_transf_nc)
     sim_stat_transformation_ds = xr.open_dataset(sim_stat_transf_nc)
 
-    start_year = 2000
-    end_year = 2010
+    start_year = args.start_year
+    end_year = args.end_year
 
     if bias_correction_type == "FDC_crossvalidation":
         bias_corrected_dict = bias_correction_utils.bias_correction_cross_validation(input_ds, obs_stat_transformation_ds,

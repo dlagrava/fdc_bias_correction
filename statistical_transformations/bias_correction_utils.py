@@ -87,8 +87,8 @@ def get_statistical_transformation_available(stat_transformation_ds):
 
 
 def bias_correction_all_time(simulation_ds: xr.Dataset, obs_stat_transf_ds: xr.Dataset, sim_stat_transf_ds: xr.Dataset,
-                             start_year=1972, end_year=2019, statistical_transformation_type="FDC",
-                             fdc_sim_var = "Sim_FDC", fdc_obs_var = "Obs_FDC"):
+                             start_year: int = 1972, end_year: int = 2019, statistical_transformation_type: str = "FDC",
+                             fdc_sim_var="Sim_FDC", fdc_obs_var="Obs_FDC"):
     """
     This function is a wrapper to select the available transformation in the simulation dataset. If the FDC
     is available, we will use Farmer et al. 2018. Otherwise, we use quantile mapping.
@@ -96,16 +96,20 @@ def bias_correction_all_time(simulation_ds: xr.Dataset, obs_stat_transf_ds: xr.D
     Parameters
     ----------
     simulation_ds
-    stat_transformation_ds
+    obs_stat_transf_ds
+    sim_stat_transf_ds
     start_year
     end_year
+    statistical_transformation_type
+    fdc_sim_var
+    fdc_obs_var
 
     Returns
     -------
 
     """
     flow_variable = "mod_streamq"
-    time_slice = slice('%i-01-01' % start_year, '%i-12-31' % end_year)
+    time_slice = slice('%i-01-01'.format(start_year), '%i-12-31'.format(end_year))
     reduced_ds = simulation_ds.sel(time=time_slice)
 
     simulation_rchid = simulation_ds.rchid.values
@@ -222,13 +226,15 @@ def bias_correction_grouping(simulation_ds: xr.Dataset, obs_stat_transf_ds: xr.D
 
             grouped_bias_corrected_values = []
             for group in grouping_idx:
-                simulated_fdc = sim_stat_transf_ds.variables["Sim_FDC_{}".format(grouping)][simulated_fdc_idx, :, group].values
-                observed_fdc = obs_stat_transf_ds.variables["Obs_FDC_{}".format(grouping)][observed_fdc_idx, :, group].values
+                simulated_fdc = sim_stat_transf_ds.variables["Sim_FDC_{}".format(grouping)][simulated_fdc_idx, :,
+                                group].values
+                observed_fdc = obs_stat_transf_ds.variables["Obs_FDC_{}".format(grouping)][observed_fdc_idx, :,
+                               group].values
                 grouped_simulated_values = reduced_ds[bias_corrected_variable][:, simulation_rchid, 0, 0].isel(
                     time=grouping_idx.groups[group])
                 bias_corrected_simulated_values = _remove_bias_flow_fdc(grouped_simulated_values, simulated_percentiles,
-                                                                   simulated_fdc, observed_percentiles,
-                                                                   observed_fdc)
+                                                                        simulated_fdc, observed_percentiles,
+                                                                        observed_fdc)
                 grouped_simulated_values.values = bias_corrected_simulated_values
                 grouped_bias_corrected_values.append(grouped_simulated_values)
 
