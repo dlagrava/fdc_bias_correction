@@ -85,6 +85,7 @@ def leave_one_year_out(DA: xr.DataArray, year: int) -> np.ndarray:
 def create_FDC_dict_sim(DS: xr.Dataset, number_of_exceedence=1001, output_variable_name: str = "Sim_FDC"):
     reaches = DS.rchid.values
     flow_variable_name = "mod_streamq"
+    skip_initial_values = 2 * 365 * 24 # Remove the first 2 years of any simulation
 
     probabilities_FDC = calculate_probabilities(number_of_exceedence)
 
@@ -97,9 +98,9 @@ def create_FDC_dict_sim(DS: xr.Dataset, number_of_exceedence=1001, output_variab
         flow_values = np.ndarray([])
         # The following test was added to possibly deal with CAMELS and CAMELS-UK data
         if dimensions_flow_variable == 2:
-            flow_values = DS.variables[flow_variable_name][:, idx].values
+            flow_values = DS.variables[flow_variable_name][skip_initial_values:, idx].values
         elif dimensions_flow_variable == 4:
-            flow_values = DS.variables[flow_variable_name][:, idx, 0, 0].values
+            flow_values = DS.variables[flow_variable_name][skip_initial_values:, idx, 0, 0].values
         else:
             print("Flow values variable has a weird number of dimensions: ", dimensions_flow_variable)
             exit(1)
