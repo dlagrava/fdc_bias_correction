@@ -22,6 +22,8 @@ def parse_args():
     parser.add_argument("-FDC_obs_var", default="Obs_FDC", help="Name of the variable for the observed FDC")
     parser.add_argument("-bias_correction_type", choices=["FDC_parameterbased", "FDC_crossvalidation",
                                                           "FDC_alltime", "FDC_seasonal", "QM_alltime"])
+    parser.add_argument("-start_year", default=1975, help="Starting year for bias-correction")
+    parser.add_argument("-end_year", default=2020, help="End year for bias-correction")
     return parser.parse_args()
 
 
