@@ -95,7 +95,7 @@ def main():
         pd.to_csv("{}/all_time_statistics.csv".format(output_dir))
         return
 
-    # This part pertains yearly plots/stats 
+    # This part pertains yearly plots/stats
     for reach_idx, reach_id in enumerate(all_reaches):
         for year in all_years:
             output_file_name = "{}/{}_{}.png".format(output_dir, reach_id, year)
