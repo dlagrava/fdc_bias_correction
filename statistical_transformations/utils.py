@@ -92,12 +92,12 @@ def add_observations_to_ds(bc_ds: xr.Dataset, observation_ds: xr.Dataset) -> xr.
             print("No reach {} in observations, ignoring".format(bc_reach_id))
             continue
 
-        obs_values[:, bc_rch_idx] = reduced_observation_ds.river_flow_rate[:, obs_rch_idx]
+        obs_values[:, bc_rch_idx, :, :] = reduced_observation_ds.river_flow_rate[:, obs_rch_idx]
 
     bc_ds["river_flow_rate"] = bc_ds.bc_mod_streamq.copy()
     bc_ds["river_flow_rate"].attrs.update(description="average flow", standard_name="river_flow_rate",
                                           long_name="observed_streamflow")
-    bc_ds["river_flow_rate"][:, :] = obs_values
+    bc_ds["river_flow_rate"] = obs_values
 
     return bc_ds
 
