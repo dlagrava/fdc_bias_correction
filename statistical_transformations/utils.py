@@ -79,11 +79,7 @@ def add_observations_to_ds(bc_ds: xr.Dataset, observation_ds: xr.Dataset) -> xr.
     The bias-corrected data set including observations for easier computation of statistics
 
     """
-    bc_start_year = bc_ds.time.dt.year.min()
-    bc_end_year = bc_ds.time.dt.year.max()
-    bc_slice = slice('%i-01-01' % bc_start_year, '%i-12-31' % bc_end_year)
-    print(bc_slice)
-    reduced_observation_ds = observation_ds.sel(time=bc_slice)
+    reduced_observation_ds = observation_ds.sel(time=bc_ds.time)
     bc_reaches = bc_ds.rchid.values
 
     obs_values = np.ones_like(bc_ds.bias_corrected.values) * np.NAN

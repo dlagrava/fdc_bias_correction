@@ -57,11 +57,10 @@ def main():
                                                                    statistical_transformation_type="FDC", grouping="season")
 
     elif bias_correction_type == "FDC_alltime":
-        bias_corrected_dict = bias_correction_utils.bias_correction_all_time(input_ds, obs_stat_transformation_ds,
+        output_ds = bias_correction_utils.bias_correction_all_time(input_ds, obs_stat_transformation_ds,
                                                                              sim_stat_transformation_ds,
                                                                              start_year=start_year, end_year=end_year,
                                                                              fdc_sim_var=fdc_sim_var, fdc_obs_var=fdc_obs_var)
-        output_ds = xr.Dataset.from_dict(bias_corrected_dict)
 
     else:
         assert False, "{} is not yet implemented.".format(bias_correction_type)

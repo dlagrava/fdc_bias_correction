@@ -109,28 +109,28 @@ def bias_correction_all_time(simulation_ds: xr.Dataset, obs_stat_transf_ds: xr.D
 
     """
     flow_variable = "mod_streamq"
-    time_slice = slice('%i-01-01'.format(start_year), '%i-12-31'.format(end_year))
+    time_slice = slice('{}-01-01'.format(start_year), '{}-12-31'.format(end_year))
     reduced_ds = simulation_ds.sel(time=time_slice)
 
     simulation_rchid = simulation_ds.rchid.values
-    # Containers for output
-    bias_corrected_reaches = []
-    raw_values = []
-    bias_corrected = []
 
     time_coord = reduced_ds.time
     print(time_coord)
+    reduced_ds["bc_mod_streamq"] = reduced_ds["mod_streamq"].copy()
+    reduced_ds["bc_mod_streamq"].attrs['long_name'] = "timestep average streamflow (bias-corrected)"
 
-    for reach in simulation_rchid:
+    for i_reach, reach in enumerate(simulation_rchid):
         # check if we have valid FDC for simulation and observation
         try:
-            print(np.where(sim_stat_transf_ds.rchid.values == reach))
-            print(np.where(obs_stat_transf_ds.station_rchid.values == reach))
             simulated_fdc_idx = np.where(sim_stat_transf_ds.rchid.values == reach)[0][0]
             observed_fdc_idx = np.where(obs_stat_transf_ds.station_rchid.values == reach)[0][0]
+            print(np.where(sim_stat_transf_ds.rchid.values == reach))
+            print(np.where(obs_stat_transf_ds.station_rchid.values == reach))
         except IndexError as error:
             print("Error getting simulated/observed FDC, ignoring {}".format(reach))
             print(error)
+            # Set the values to _fillValue
+            reduced_ds["bc_mod_streamq"][:, i_reach, 0, 0] = -9999.
             continue
 
         flow_values = reduced_ds.variables[flow_variable][:, simulated_fdc_idx, 0, 0].values
@@ -150,26 +150,9 @@ def bias_correction_all_time(simulation_ds: xr.Dataset, obs_stat_transf_ds: xr.D
             observed_quantiles = obs_stat_transf_ds.variables["Obs_Quantile"][observed_fdc_idx, :].values
             bias_corrected_values = _remove_bias_flow_qq(flow_values, simulated_quantiles, observed_quantiles)
 
-        assert len(bias_corrected_values) > 0., "Bias corrected values have 0 values, this is a problem"
+        reduced_ds["bc_mod_streamq"][:, i_reach, 0, 0] = bias_corrected_values
 
-        bias_corrected_reaches.append(reach)
-        raw_values.append(flow_values)
-        bias_corrected.append(bias_corrected_values)
-
-    raw_values = np.array(raw_values).T
-    bias_corrected = np.array(bias_corrected).T
-
-    # Add the correction method for reference
-    attrs_bias_corrected["method"] = statistical_transformation_type
-
-    bias_corrected_dict = {
-        'rchid': {'dims': ('nrch',), 'data': bias_corrected_reaches, 'attrs': attrs_rchid},
-        'bias_corrected': {'dims': ('time', 'nrch'), 'data': bias_corrected, 'attrs': attrs_bias_corrected},
-        'raw_simulation': {'dims': ('time', 'nrch'), 'data': raw_values, 'attrs': attrs_raw_simulation},
-        'time': {'dims': ('time',), 'data': time_coord}
-    }
-
-    return bias_corrected_dict
+    return reduced_ds
 
 
 def bias_correction_grouping(simulation_ds: xr.Dataset, obs_stat_transf_ds: xr.Dataset, sim_stat_transf_ds: xr.Dataset,
