@@ -82,7 +82,7 @@ def add_observations_to_ds(bc_ds: xr.Dataset, observation_ds: xr.Dataset) -> xr.
     reduced_observation_ds = observation_ds.sel(time=bc_ds.time)
     bc_reaches = bc_ds.rchid.values
 
-    obs_values = np.ones_like(bc_ds.bias_corrected.values) * np.NAN
+    obs_values = np.ones_like(bc_ds.bc_mod_streamq.values) * np.NAN
 
     for bc_rch_idx, bc_reach_id in enumerate(bc_reaches):
         print(bc_reach_id)
@@ -94,7 +94,7 @@ def add_observations_to_ds(bc_ds: xr.Dataset, observation_ds: xr.Dataset) -> xr.
 
         obs_values[:, bc_rch_idx] = reduced_observation_ds.river_flow_rate[:, obs_rch_idx]
 
-    bc_ds["river_flow_rate"] = bc_ds.bias_corrected.copy()
+    bc_ds["river_flow_rate"] = bc_ds.bc_mod_streamq.copy()
     bc_ds["river_flow_rate"].attrs.update(description="average flow", standard_name="river_flow_rate",
                                           long_name="observed_streamflow")
     bc_ds["river_flow_rate"][:, :] = obs_values
