@@ -41,6 +41,10 @@ def select_valid_years(input_flow_ds: xr.Dataset, station,
         # Remove all non-valid numbers
         all_data = yearly_data.data[np.where(yearly_data.mask != True)]
 
+        if len(all_data) == 0:
+            print("No valid data for year {}".format(year))
+            continue
+
         if np.max(all_data) == 0.:
             print("Year full of 0s: ", len(all_data))
             print(all_data)
@@ -79,7 +83,7 @@ def add_observations_to_ds(bc_ds: xr.Dataset, observation_ds: xr.Dataset) -> xr.
     The bias-corrected data set including observations for easier computation of statistics
 
     """
-    reduced_observation_ds = observation_ds.sel(time=bc_ds.time)
+    reduced_observation_ds = observation_ds.reindex(time=bc_ds.time)
     bc_reaches = bc_ds.rchid.values
 
     obs_values = np.ones_like(bc_ds.bc_mod_streamq.values) * np.NAN

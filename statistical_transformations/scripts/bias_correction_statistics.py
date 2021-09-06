@@ -87,7 +87,7 @@ def main():
     all_years = range(start_year, end_year + 1)
 
     if all_time_stats:
-        selected_stats = ["NSE_raw", "NSE_bc", "NSE_log_raw", "NSE_log_bc", "KGE"]
+        selected_stats = ["NSE_raw", "NSE_bc", "NSE_log_raw", "NSE_log_bc", "KGE_raw", "KGE_bc"]
         all_stats = []
         good_reaches = []
         for reach_idx, reach_id in enumerate(all_reaches):
@@ -98,8 +98,8 @@ def main():
             good_reaches.append(reach_id)
             all_stats.append([stats[i] for i in selected_stats])
 
-        pd.DataFrame(data=all_stats, index=good_reaches, columns=selected_stats)
-        pd.to_csv("{}/all_time_statistics.csv".format(output_dir))
+        all_time_df = pd.DataFrame(data=all_stats, index=good_reaches, columns=selected_stats)
+        all_time_df.to_csv("{}/all_time_statistics.csv".format(output_dir))
         return
 
     # This part pertains yearly plots/stats
@@ -110,6 +110,9 @@ def main():
             reduced_input_ds = input_ds.sel(time=current_year_slice)
 
             stats = calculate_performances(reduced_input_ds, reach_idx)
+            if not stats:
+                print("Ignoring: {}".format(reach_id))
+                break
 
             col_labels = ["", "Raw simulation", "Bias-corrected"]
             table_data = [["NSE", stats["NSE_raw"], stats["NSE_bc"]],
@@ -121,8 +124,8 @@ def main():
             axs[0].spines["top"].set_visible(False)
             axs[0].spines["right"].set_visible(False)
             fig.suptitle("Hydrographs for {} (year {})".format(reach_id, year))
-            reduced_input_ds.raw_simulation[:, reach_idx].plot(label="Simulated flow", ax=axs[0])
-            reduced_input_ds.bias_corrected[:, reach_idx].plot(label="bias-corrected flow", ax=axs[0])
+            reduced_input_ds.mod_streamq[:, reach_idx].plot(label="Simulated flow", ax=axs[0])
+            reduced_input_ds.bc_mod_streamq[:, reach_idx].plot(label="bias-corrected flow", ax=axs[0])
             reduced_input_ds.river_flow_rate[:, reach_idx].plot(label="Observed flow", ax=axs[0])
             axs[0].legend()
 

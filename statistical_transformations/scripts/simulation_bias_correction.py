@@ -22,8 +22,8 @@ def parse_args():
     parser.add_argument("-FDC_obs_var", default="Obs_FDC", help="Name of the variable for the observed FDC")
     parser.add_argument("-bias_correction_type", choices=["FDC_parameterbased", "FDC_crossvalidation",
                                                           "FDC_alltime", "FDC_seasonal", "QM_alltime"])
-    parser.add_argument("-start_year", default=1975, help="Starting year for bias-correction")
-    parser.add_argument("-end_year", default=2020, help="End year for bias-correction")
+    parser.add_argument("-start_year", default=1975, help="Starting year for bias-correction (only for cross-validation)")
+    parser.add_argument("-end_year", default=2020, help="End year for bias-correction (only for cross-validation)")
     return parser.parse_args()
 
 
@@ -59,7 +59,6 @@ def main():
     elif bias_correction_type == "FDC_alltime":
         output_ds = bias_correction_utils.bias_correction_all_time(input_ds, obs_stat_transformation_ds,
                                                                              sim_stat_transformation_ds,
-                                                                             start_year=start_year, end_year=end_year,
                                                                              fdc_sim_var=fdc_sim_var, fdc_obs_var=fdc_obs_var)
 
     else:

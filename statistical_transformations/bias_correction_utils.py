@@ -87,7 +87,7 @@ def get_statistical_transformation_available(stat_transformation_ds):
 
 
 def bias_correction_all_time(simulation_ds: xr.Dataset, obs_stat_transf_ds: xr.Dataset, sim_stat_transf_ds: xr.Dataset,
-                             start_year: int = 1972, end_year: int = 2019, statistical_transformation_type: str = "FDC",
+                             statistical_transformation_type: str = "FDC",
                              fdc_sim_var="Sim_FDC", fdc_obs_var="Obs_FDC"):
     """
     This function is a wrapper to select the available transformation in the simulation dataset. If the FDC
@@ -109,15 +109,13 @@ def bias_correction_all_time(simulation_ds: xr.Dataset, obs_stat_transf_ds: xr.D
 
     """
     flow_variable = "mod_streamq"
-    time_slice = slice('{}-01-01'.format(start_year), '{}-12-31'.format(end_year))
-    reduced_ds = simulation_ds.sel(time=time_slice)
 
     simulation_rchid = simulation_ds.rchid.values
 
-    time_coord = reduced_ds.time
+    time_coord = simulation_ds.time
     print(time_coord)
-    reduced_ds["bc_mod_streamq"] = reduced_ds["mod_streamq"].copy()
-    reduced_ds["bc_mod_streamq"].attrs['long_name'] = "timestep average streamflow (bias-corrected)"
+    simulation_ds["bc_mod_streamq"] = simulation_ds["mod_streamq"].copy()
+    simulation_ds["bc_mod_streamq"].attrs['long_name'] = "timestep average streamflow (bias-corrected)"
 
     for i_reach, reach in enumerate(simulation_rchid):
         # check if we have valid FDC for simulation and observation
@@ -130,10 +128,10 @@ def bias_correction_all_time(simulation_ds: xr.Dataset, obs_stat_transf_ds: xr.D
             print("Error getting simulated/observed FDC, ignoring {}".format(reach))
             print(error)
             # Set the values to _fillValue
-            reduced_ds["bc_mod_streamq"][:, i_reach, 0, 0] = -9999.
+            simulation_ds["bc_mod_streamq"][:, i_reach, 0, 0] = -9999.
             continue
 
-        flow_values = reduced_ds.variables[flow_variable][:, simulated_fdc_idx, 0, 0].values
+        flow_values = simulation_ds.variables[flow_variable][:, simulated_fdc_idx, 0, 0].values
         bias_corrected_values = np.array([])
         # Choose the correct functions according to the transformation type
         if statistical_transformation_type == "FDC":
@@ -150,16 +148,17 @@ def bias_correction_all_time(simulation_ds: xr.Dataset, obs_stat_transf_ds: xr.D
             observed_quantiles = obs_stat_transf_ds.variables["Obs_Quantile"][observed_fdc_idx, :].values
             bias_corrected_values = _remove_bias_flow_qq(flow_values, simulated_quantiles, observed_quantiles)
 
-        reduced_ds["bc_mod_streamq"][:, i_reach, 0, 0] = bias_corrected_values
+        # TODO: this should happen for all nrun and nens as well to be perfectly correct
+        simulation_ds["bc_mod_streamq"][:, i_reach, 0, 0] = bias_corrected_values
 
-    return reduced_ds
+    return simulation_ds
 
 
 def bias_correction_grouping(simulation_ds: xr.Dataset, obs_stat_transf_ds: xr.Dataset, sim_stat_transf_ds: xr.Dataset,
                              start_year=1972, end_year=2019, statistical_transformation_type="FDC", grouping="season"):
     """
     This function is a wrapper to select the available transformation in the simulation dataset. If the FDC
-    is available, we will use Farmer et al. 2018. Otherwise, we use quantile mapping.
+    is selected, we will use Farmer et al. 2018. Otherwise, we use quantile mapping.
 
     Parameters
     ----------
@@ -174,19 +173,13 @@ def bias_correction_grouping(simulation_ds: xr.Dataset, obs_stat_transf_ds: xr.D
     """
     flow_variable = "mod_streamq"
     bias_corrected_variable = "bc_streamq"
-    time_slice = slice('%i-01-01' % start_year, '%i-12-31' % end_year)
-    reduced_ds = simulation_ds.sel(time=time_slice)
 
     simulation_rchid = simulation_ds.rchid.values
-    # Containers for output
-    bias_corrected_reaches = []
-    raw_values = []
-    bias_corrected = []
 
-    time_coord = reduced_ds.time
+    time_coord = simulation_ds.time
     print(time_coord)
 
-    simulation_ds[bias_corrected_variable] = reduced_ds.mod_streamq.copy()
+    simulation_ds[bias_corrected_variable] = simulation_ds.variables[flow_variable].copy()
 
     for reach in simulation_rchid:
         # check if we have valid FDC for simulation and observation
@@ -213,7 +206,7 @@ def bias_correction_grouping(simulation_ds: xr.Dataset, obs_stat_transf_ds: xr.D
                                 group].values
                 observed_fdc = obs_stat_transf_ds.variables["Obs_FDC_{}".format(grouping)][observed_fdc_idx, :,
                                group].values
-                grouped_simulated_values = reduced_ds[bias_corrected_variable][:, simulation_rchid, 0, 0].isel(
+                grouped_simulated_values = simulation_ds[flow_variable][:, simulation_rchid, 0, 0].isel(
                     time=grouping_idx.groups[group])
                 bias_corrected_simulated_values = _remove_bias_flow_fdc(grouped_simulated_values, simulated_percentiles,
                                                                         simulated_fdc, observed_percentiles,
@@ -225,6 +218,8 @@ def bias_correction_grouping(simulation_ds: xr.Dataset, obs_stat_transf_ds: xr.D
             joint_seasonal_values = xr.concat(grouped_bias_corrected_values, dim='time')
             joint_seasonal_values = joint_seasonal_values.sortby('time')
             simulation_ds[bias_corrected_variable][:, simulation_rchid, 0, 0] = joint_seasonal_values
+        else:
+            assert False, "We have only implemented grouping for FDC."
 
     return simulation_ds
 
@@ -237,7 +232,7 @@ def bias_correction_cross_validation(simulation_ds: xr.Dataset, obs_stat_transfo
     cross-validation. To bias-correct a certain year, the statistics (FDC or QM) are computed on all time
     data minus that year.
 
-    TODO: only implemented for FDC at this point.
+    TODO: Not implemented
 
     Parameters
     ----------
