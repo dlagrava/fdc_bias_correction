@@ -35,9 +35,10 @@ def calculate_performances(input_ds, reach_idx):
     -------
 
     """
-    simulated_flow = input_ds.raw_simulation[:, reach_idx].values
-    bc_flow = input_ds.bias_corrected[:, reach_idx].values
-    observed_flow = input_ds.river_flow_rate[:, reach_idx].values
+    # TODO: the resulting netCDF has nrun and nens dimensions, remove!
+    simulated_flow = input_ds.mod_streamq[:, reach_idx, 0, 0].values
+    bc_flow = input_ds.bc_mod_streamq[:, reach_idx, 0, 0].values
+    observed_flow = input_ds.river_flow_rate[:, reach_idx, 0, 0].values
 
     if len(np.where(~np.isnan(bc_flow))[0]) == 0:
         print("{} was not bias-corrected, ignoring.".format(reach_idx))
