@@ -22,6 +22,7 @@ def parse_args():
 
     return args
 
+
 def calculate_performances(input_ds, reach_idx):
     """
 
@@ -37,6 +38,10 @@ def calculate_performances(input_ds, reach_idx):
     simulated_flow = input_ds.raw_simulation[:, reach_idx].values
     bc_flow = input_ds.bias_corrected[:, reach_idx].values
     observed_flow = input_ds.river_flow_rate[:, reach_idx].values
+
+    if len(np.where(~np.isnan(bc_flow))[0]) == 0:
+        print("{} was not bias-corrected, ignoring.".format(reach_idx))
+        return {}
 
     # Getting only values where we have observations
     valid_values_obs = observed_flow[np.argwhere(~np.isnan(observed_flow))].flatten()
@@ -58,6 +63,7 @@ def calculate_performances(input_ds, reach_idx):
     KGE_bc = KGE(valid_values_bc_sim, valid_values_obs)
     return {'NSE_raw': NSE_raw, 'NSE_bc': NSE_bc, "NSE_log_raw": NSE_log_raw, "NSE_log_bc": NSE_log_bc,
             'pBias_raw': pBias_raw, "pBias_bc": pBias_bc, "KGE_raw": KGE_raw, "KGE_bc": KGE_bc}
+
 
 def main():
     args = parse_args()
@@ -105,7 +111,8 @@ def main():
             stats = calculate_performances(reduced_input_ds, reach_idx)
 
             col_labels = ["", "Raw simulation", "Bias-corrected"]
-            table_data = [["NSE", stats["NSE_raw"], stats["NSE_bc"]], ["NSE (log)", stats["NSE_log_raw"], stats["NSE_log_bc"]],
+            table_data = [["NSE", stats["NSE_raw"], stats["NSE_bc"]],
+                          ["NSE (log)", stats["NSE_log_raw"], stats["NSE_log_bc"]],
                           ["pBias", stats["pBias_raw"], stats["pBias_bc"]], ["KGE", stats["KGE_raw"], stats["KGE_bc"]]]
 
             fig, axs = plt.subplots(2, 1, gridspec_kw={'height_ratios': [4, 1]}, figsize=(12, 8))
