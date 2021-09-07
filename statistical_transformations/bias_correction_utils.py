@@ -38,11 +38,11 @@ def _remove_bias_flow_fdc(flow_values, simulated_fdc_probs, simulated_fdc, obser
     """
     # Get the probability of flow_value on the simulation
 
-    exceedance_simulated = interp1d(simulated_fdc[::-1], simulated_fdc_probs[::-1],
-                                    kind='cubic', fill_value='extrapolate')(flow_values)
+    exceedance_simulated = interp1d(simulated_fdc, simulated_fdc_probs,
+                                    kind='slinear', fill_value='extrapolate')(flow_values)
     # With that exceedance, compute the observed flow value
     bias_corrected_flow_values = interp1d(observed_fdc_probs, observed_fdc,
-                                          kind='cubic', fill_value='extrapolate')(exceedance_simulated)
+                                          kind='slinear', fill_value='extrapolate')(exceedance_simulated)
     return bias_corrected_flow_values
 
 
@@ -131,7 +131,7 @@ def bias_correction_all_time(simulation_ds: xr.Dataset, obs_stat_transf_ds: xr.D
             simulation_ds["bc_mod_streamq"][:, i_reach, 0, 0] = -9999.
             continue
 
-        flow_values = simulation_ds.variables[flow_variable][:, simulated_fdc_idx, 0, 0].values
+        flow_values = simulation_ds.variables[flow_variable][:, i_reach, 0, 0].values
         bias_corrected_values = np.array([])
         # Choose the correct functions according to the transformation type
         if statistical_transformation_type == "FDC":
