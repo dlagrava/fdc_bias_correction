@@ -51,7 +51,7 @@ def calculate_performances(input_ds, reach_idx):
 
     # Patching the 0 values in observations with a small value
     # 10% of the all time minimal value
-    valid_values_bc_sim[valid_values_bc_sim <= 0.] = np.min(valid_values_bc_sim[valid_values_bc_sim > 0.]) * 0.1
+    valid_values_obs[valid_values_obs <= 0.] = np.min(valid_values_obs[valid_values_obs > 0.]) * 0.1
 
     if len(valid_values_sim) < 100:
         print("Less than 100 hours of data for the observations for the input, ignoring.")
