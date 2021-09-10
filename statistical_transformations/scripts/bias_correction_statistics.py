@@ -49,6 +49,10 @@ def calculate_performances(input_ds, reach_idx):
     valid_values_sim = simulated_flow[np.argwhere(~np.isnan(observed_flow))].flatten()
     valid_values_bc_sim = bc_flow[np.argwhere(~np.isnan(observed_flow))].flatten()
 
+    # Patching the 0 values in observations with a small value
+    # 10% of the all time minimal value
+    valid_values_bc_sim[valid_values_bc_sim <= 0.] = np.min(valid_values_bc_sim[valid_values_bc_sim > 0.]) * 0.1
+
     if len(valid_values_sim) < 100:
         print("Less than 100 hours of data for the observations for the input, ignoring.")
         return {}
@@ -79,7 +83,6 @@ def main():
     input_ds = xr.open_dataset(input_nc)
 
     # TODO: check that we have all the time-series we need to plot
-
     all_reaches = input_ds.rchid.values
     start_year = input_ds.time.dt.year.values.min()
     end_year = input_ds.time.dt.year.values.max()

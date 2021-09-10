@@ -59,7 +59,7 @@ def select_valid_years(input_flow_ds: xr.Dataset, station,
 
     if valid_years >= min_valid_years:
         # Changing 0s to some valid value for logs
-        valid_data[valid_data <= 0.] = np.min(valid_data[valid_data > 0.]) * 0.01  # 1% of the all time minimal value
+        valid_data[valid_data <= 0.] = np.min(valid_data[valid_data > 0.]) * 0.1  # 10% of the all time minimal value
         return valid_data
 
     # If we do not have enough data, we return an empty array
@@ -142,7 +142,7 @@ def NSE(modelled_values, observed_values):
 
     """
     mean_obs = np.mean(observed_values)
-    return 1 - np.sum((modelled_values - observed_values) ** 2) / np.sum((observed_values - mean_obs) ** 2)
+    return 1. - np.sum((modelled_values - observed_values) ** 2) / np.sum((observed_values - mean_obs) ** 2)
 
 
 def KGE(modelled_values, observed_values):
