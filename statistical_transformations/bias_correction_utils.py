@@ -155,17 +155,19 @@ def bias_correction_all_time(simulation_ds: xr.Dataset, obs_stat_transf_ds: xr.D
 
 
 def bias_correction_grouping(simulation_ds: xr.Dataset, obs_stat_transf_ds: xr.Dataset, sim_stat_transf_ds: xr.Dataset,
-                             start_year=1972, end_year=2019, statistical_transformation_type="FDC", grouping="season"):
+                             statistical_transformation_type="FDC", grouping="season"):
     """
     This function is a wrapper to select the available transformation in the simulation dataset. If the FDC
     is selected, we will use Farmer et al. 2018. Otherwise, we use quantile mapping.
 
+
     Parameters
     ----------
     simulation_ds
-    stat_transformation_ds
-    start_year
-    end_year
+    obs_stat_transf_ds
+    sim_stat_transf_ds
+    statistical_transformation_type
+    grouping
 
     Returns
     -------
@@ -185,9 +187,9 @@ def bias_correction_grouping(simulation_ds: xr.Dataset, obs_stat_transf_ds: xr.D
         # check if we have valid FDC for simulation and observation
         try:
             print(np.where(sim_stat_transf_ds.rchid.values == reach))
-            print(np.where(obs_stat_transf_ds.station_rchid.values == reach))
+            print(np.where(obs_stat_transf_ds.rchid.values == reach))
             simulated_fdc_idx = np.where(sim_stat_transf_ds.rchid.values == reach)[0][0]
-            observed_fdc_idx = np.where(obs_stat_transf_ds.station_rchid.values == reach)[0][0]
+            observed_fdc_idx = np.where(obs_stat_transf_ds.rchid.values == reach)[0][0]
         except IndexError as error:
             print("Error getting simulated/observed FDC, ignoring {}".format(reach))
             print(error)
