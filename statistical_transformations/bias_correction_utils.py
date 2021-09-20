@@ -174,7 +174,7 @@ def bias_correction_grouping(simulation_ds: xr.Dataset, obs_stat_transf_ds: xr.D
 
     """
     flow_variable = "mod_streamq"
-    bias_corrected_variable = "bc_streamq"
+    bias_corrected_variable = "bc_{}".format(flow_variable)
 
     simulation_rchid = simulation_ds.rchid.values
 
@@ -183,7 +183,7 @@ def bias_correction_grouping(simulation_ds: xr.Dataset, obs_stat_transf_ds: xr.D
 
     simulation_ds[bias_corrected_variable] = simulation_ds.variables[flow_variable].copy()
 
-    for reach in simulation_rchid:
+    for i_reach, reach in enumerate(simulation_rchid):
         # check if we have valid FDC for simulation and observation
         try:
             print(np.where(sim_stat_transf_ds.rchid.values == reach))
@@ -203,12 +203,12 @@ def bias_correction_grouping(simulation_ds: xr.Dataset, obs_stat_transf_ds: xr.D
             observed_percentiles = obs_stat_transf_ds.variables["percentile"][:].values
 
             grouped_bias_corrected_values = []
-            for group in grouping_idx:
+            for i_group, group in enumerate(grouping_idx.groups):
                 simulated_fdc = sim_stat_transf_ds.variables["Sim_FDC_{}".format(grouping)][simulated_fdc_idx, :,
-                                group].values
+                                i_group].values
                 observed_fdc = obs_stat_transf_ds.variables["Obs_FDC_{}".format(grouping)][observed_fdc_idx, :,
-                               group].values
-                grouped_simulated_values = simulation_ds[flow_variable][:, simulation_rchid, 0, 0].isel(
+                               i_group].values
+                grouped_simulated_values = simulation_ds[flow_variable][:, i_reach, 0, 0].isel(
                     time=grouping_idx.groups[group])
                 bias_corrected_simulated_values = _remove_bias_flow_fdc(grouped_simulated_values, simulated_percentiles,
                                                                         simulated_fdc, observed_percentiles,
@@ -216,10 +216,10 @@ def bias_correction_grouping(simulation_ds: xr.Dataset, obs_stat_transf_ds: xr.D
                 grouped_simulated_values.values = bias_corrected_simulated_values
                 grouped_bias_corrected_values.append(grouped_simulated_values)
 
-            assert len(bias_corrected_values) > 0., "Bias corrected values have 0 values, this is a problem"
+            assert len(grouped_bias_corrected_values) > 0., "Bias corrected values have 0 values, this is a problem"
             joint_seasonal_values = xr.concat(grouped_bias_corrected_values, dim='time')
             joint_seasonal_values = joint_seasonal_values.sortby('time')
-            simulation_ds[bias_corrected_variable][:, simulation_rchid, 0, 0] = joint_seasonal_values
+            simulation_ds[bias_corrected_variable][:, i_reach, 0, 0] = joint_seasonal_values
         else:
             assert False, "We have only implemented grouping for FDC."
 

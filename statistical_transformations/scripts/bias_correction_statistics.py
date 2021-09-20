@@ -6,7 +6,6 @@ from statistical_transformations.utils import NSE, KGE, pBias
 import matplotlib.pyplot as plt
 import xarray as xr
 import numpy as np
-import sklearn.metrics
 
 import argparse
 import os
@@ -51,6 +50,10 @@ def calculate_performances(input_ds, reach_idx):
 
     # Patching the 0 values in observations with a small value
     # 10% of the all time minimal value
+    if len(valid_values_obs[valid_values_obs > 0.]) == 0:
+        print("No observed valid values")
+        return {}
+
     valid_values_obs[valid_values_obs <= 0.] = np.min(valid_values_obs[valid_values_obs > 0.]) * 0.1
 
     if len(valid_values_sim) < 100:

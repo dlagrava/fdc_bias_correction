@@ -254,7 +254,7 @@ def create_FDC_dict_cross_validation(DS: xr.Dataset, flow_variable_name: str = "
 
 
 def create_FDC_dict_sim_seasonal(simulated_ds: xr.Dataset, number_of_exceedence=1001,
-                                 output_variable_name: str = "Sim_FDC", characteristics: str = "") -> Dict:
+                                 output_variable_name: str = "Sim_FDC_season", characteristics: str = "") -> Dict:
     station_rchids = simulated_ds.rchid.values.astype(int)
     characteristics_df = None
     if characteristics != "":
@@ -274,7 +274,6 @@ def create_FDC_dict_sim_seasonal(simulated_ds: xr.Dataset, number_of_exceedence=
         print(reach_id)
 
         flow_values = simulated_ds.variables[flow_variable_name][:, i_rchid, 0, 0].values
-        values_FDC = calculate_FDC(probabilities_fdc, flow_values)
 
         # Divide the data seasonally
         for i_season, season in enumerate(seasonal_idx.groups):
@@ -301,7 +300,7 @@ def create_FDC_dict_sim_monthly(simulated_ds, number_of_exceedence) -> Dict:
 
 
 def create_FDC_dict_obs_seasonal(observed_ds: xr.Dataset, number_of_exceedence=1001,
-                                 output_variable_name: str = "Obs_FDC_seasonal",
+                                 output_variable_name: str = "Obs_FDC_season",
                                  characteristics="") -> Dict:
     station_rchids = observed_ds.station_rchid.values.astype(int)
     characteristics_df = None
