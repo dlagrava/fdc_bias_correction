@@ -281,6 +281,10 @@ def create_FDC_dict_sim_seasonal(simulated_ds: xr.Dataset, number_of_exceedence=
                 time=seasonal_idx.groups[season]).to_masked_array()
             all_values_season = all_values_season.data[np.where(all_values_season.mask != True)]
 
+            # Change the 0s to min values for each season
+            all_values_season[all_values_season <= 0.] = np.min(
+                all_values_season[all_values_season > 0.]) * 0.1  # 10% of the all time minimal value
+
             # Construct the seasonal FDC
             values_fdc = calculate_FDC(probabilities_fdc, all_values_season)
             data[i_rchid, :, i_season] = values_fdc
@@ -320,6 +324,9 @@ def create_FDC_dict_obs_seasonal(observed_ds: xr.Dataset, number_of_exceedence=1
         print(reach_id)
         # Check if the site passes the check for minimal data content
         flow_values = select_valid_years(observed_ds, station)
+
+        # Remove the 0 values as with the other codes
+
         if len(flow_values) == 0:
             print("{}: not enough values to construct the FDC. Ignoring".format(reach_id))
             data[i_station, :, :] = np.nan
