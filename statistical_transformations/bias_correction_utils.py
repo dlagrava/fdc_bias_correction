@@ -219,6 +219,8 @@ def bias_correction_grouping(simulation_ds: xr.Dataset, obs_stat_transf_ds: xr.D
             assert len(grouped_bias_corrected_values) > 0., "Bias corrected values have 0 values, this is a problem"
             joint_seasonal_values = xr.concat(grouped_bias_corrected_values, dim='time')
             joint_seasonal_values = joint_seasonal_values.sortby('time')
+            # Avoid the 0 values for this here, by putting 10% of the min value
+            joint_seasonal_values[joint_seasonal_values < 0.] = np.min(joint_seasonal_values[joint_seasonal_values > 0.]) * 0.1
             simulation_ds[bias_corrected_variable][:, i_reach, 0, 0] = joint_seasonal_values
         else:
             assert False, "We have only implemented grouping for FDC."
