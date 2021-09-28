@@ -56,6 +56,11 @@ def calculate_performances(input_ds, reach_idx):
 
     valid_values_obs[valid_values_obs <= 0.] = np.min(valid_values_obs[valid_values_obs > 0.]) * 0.1
 
+    # Bias-corrected may have 0. or negative numbers because of extrapolation!
+    if len(valid_values_bc_sim[valid_values_bc_sim <= 0.]) > 0:
+        print("Warning: Bias-corrected values have negative or 0s for reach {}".format(input_ds.rchid[reach_idx]))
+        valid_values_bc_sim[valid_values_bc_sim <= 0.] = np.min(valid_values_bc_sim[valid_values_bc_sim > 0.]) * 0.1
+
     if len(valid_values_sim) < 100:
         print("Less than 100 hours of data for the observations for the input, ignoring.")
         return {}
