@@ -8,6 +8,9 @@ import scipy.stats
 
 from typing import Dict
 
+farmer_2019_exceedances = np.array([0.0003, 0.005, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5,
+                                      0.6, 0.7, 0.8, 0.9, 0.95, 0.9950, 0.9997])
+
 attrs_station_rchid = {"long_name": "REC identifier for the stream reach on which station is located",
                        "valid_min": 0, "valid_max": 2000000000}
 attrs_rchid = {'long_name': 'identifier of selected reaches (REC)'}
@@ -22,8 +25,7 @@ attrs_year_removed = {'description': 'year removed from to construct the corresp
 def calculate_probabilities(number_bins=0, start_prob=0.0, end_prob=1.0):
     # Calculate the probabilities for the FDC
     if number_bins == 0:
-        probabilities_fdc = np.array([0.0003, 0.005, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5,
-                                      0.6, 0.7, 0.8, 0.9, 0.95, 0.9950, 0.9997])
+        probabilities_fdc = farmer_2019_exceedances
     else:
         probabilities_fdc = np.linspace(start_prob, end_prob, number_bins)
 
