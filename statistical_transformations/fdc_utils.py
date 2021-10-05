@@ -22,8 +22,8 @@ attrs_year_removed = {'description': 'year removed from to construct the corresp
 def calculate_probabilities(number_bins=0, start_prob=0.0, end_prob=1.0):
     # Calculate the probabilities for the FDC
     if number_bins == 0:
-        probabilities_fdc = np.array([0.0001, 0.0003, 0.001, 0.005, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5,
-                                      0.6, 0.7, 0.8, 0.9, 0.95, 0.9950, 0.999, 0.9997, 0.9999])
+        probabilities_fdc = np.array([0.0003, 0.005, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5,
+                                      0.6, 0.7, 0.8, 0.9, 0.95, 0.9950, 0.9997])
     else:
         probabilities_fdc = np.linspace(start_prob, end_prob, number_bins)
 
