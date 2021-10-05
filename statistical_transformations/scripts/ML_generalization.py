@@ -1,6 +1,7 @@
 #! /bin/env python
 
 import statistical_transformations.regression_models as regression_models
+import statistical_transformations.fdc_utils as fdc_utils
 
 import xarray as xr
 import pandas as pd
@@ -11,7 +12,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error
 
 import argparse
-from typing import Sequence, Tuple, Any
+from typing import Sequence, Tuple, Any, List
 
 
 def resample_fdc(new_probs: np.ndarray, original_probs: np.ndarray, original_fdc: np.ndarray):
@@ -56,8 +57,8 @@ def calculate_parameters_fdc(distribution, original_fdc):
 
 
 def join_data_fdc(fdc_ds: xr.Dataset, characteristics_df: pd.DataFrame,
-                  method: str, selected_characteristics: Sequence[str],
-                  categorical_characteristics: Sequence[str] = []) -> Tuple[pd.DataFrame, Sequence[str], Sequence[str]]:
+                  method: str, selected_characteristics: List[str],
+                  categorical_characteristics=None) -> Tuple[pd.DataFrame, Sequence[str], Sequence[str]]:
     """
     Prepare a pandas dataframe with characteristics and FDC values
 
@@ -73,14 +74,15 @@ def join_data_fdc(fdc_ds: xr.Dataset, characteristics_df: pd.DataFrame,
     -------
 
     """
+    if categorical_characteristics is None:
+        categorical_characteristics = []
     rchids_with_characteristics = characteristics_df.index
     rchids_with_fdc = fdc_ds.station_rchid.values
 
     selected_characteristics_with_categorical = selected_characteristics.copy()
 
-    # down-sampled probabilities
-    probabilities_fdc = np.array([0.0001, 0.0003, 0.001, 0.005, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5,
-                                  0.6, 0.7, 0.8, 0.9, 0.95, 0.9950, 0.999, 0.9997, 0.9999])
+    # down-sampled probabilities. Now original Farmer et al. 2019 15 values
+    probabilities_fdc = fdc_utils.farmer_2019_exceedances
 
     distribution = None
     columns_result = probabilities_fdc
