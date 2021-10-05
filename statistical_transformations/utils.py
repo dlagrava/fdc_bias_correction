@@ -28,7 +28,6 @@ def select_valid_years(input_flow_ds: xr.Dataset, station,
     valid_years = 0
     start_year = input_flow_ds.time.dt.year.min().values
     end_year = input_flow_ds.time.dt.year.max().values
-    print(start_year, end_year)
 
     for year in np.arange(start_year, end_year + 1):
         year_slice = slice('%i-01-01' % year, '%i-12-31' % year)
@@ -41,6 +40,10 @@ def select_valid_years(input_flow_ds: xr.Dataset, station,
 
         # Remove all non-valid numbers
         all_data = yearly_data.data[np.where(yearly_data.mask != True)]
+
+        if len(all_data) == 0:
+            print("No valid data for year {}".format(year))
+            continue
 
         if np.max(all_data) == 0.:
             print("Year full of 0s: ", len(all_data))
@@ -56,7 +59,7 @@ def select_valid_years(input_flow_ds: xr.Dataset, station,
 
     if valid_years >= min_valid_years:
         # Changing 0s to some valid value for logs
-        valid_data[valid_data <= 0.] = np.min(valid_data[valid_data > 0.]) * 0.01  # 1% of the all time minimal value
+        valid_data[valid_data <= 0.] = np.min(valid_data[valid_data > 0.]) * 0.1  # 10% of the all time minimal value
         return valid_data
 
     # If we do not have enough data, we return an empty array
@@ -80,14 +83,10 @@ def add_observations_to_ds(bc_ds: xr.Dataset, observation_ds: xr.Dataset) -> xr.
     The bias-corrected data set including observations for easier computation of statistics
 
     """
-    bc_start_year = bc_ds.time.dt.year.min()
-    bc_end_year = bc_ds.time.dt.year.max()
-    bc_slice = slice('%i-01-01' % bc_start_year, '%i-12-31' % bc_end_year)
-    print(bc_slice)
-    reduced_observation_ds = observation_ds.sel(time=bc_slice)
+    reduced_observation_ds = observation_ds.reindex(time=bc_ds.time)
     bc_reaches = bc_ds.rchid.values
 
-    obs_values = np.ones_like(bc_ds.bias_corrected.values) * np.NAN
+    obs_values = np.ones_like(bc_ds.bc_mod_streamq.values) * np.NAN
 
     for bc_rch_idx, bc_reach_id in enumerate(bc_reaches):
         print(bc_reach_id)
@@ -97,12 +96,12 @@ def add_observations_to_ds(bc_ds: xr.Dataset, observation_ds: xr.Dataset) -> xr.
             print("No reach {} in observations, ignoring".format(bc_reach_id))
             continue
 
-        obs_values[:, bc_rch_idx] = reduced_observation_ds.river_flow_rate[:, obs_rch_idx]
+        obs_values[:, bc_rch_idx, 0, 0] = reduced_observation_ds.river_flow_rate[:, obs_rch_idx]
 
-    bc_ds["river_flow_rate"] = bc_ds.bias_corrected.copy()
+    bc_ds["river_flow_rate"] = bc_ds.bc_mod_streamq.copy()
     bc_ds["river_flow_rate"].attrs.update(description="average flow", standard_name="river_flow_rate",
                                           long_name="observed_streamflow")
-    bc_ds["river_flow_rate"][:, :] = obs_values
+    bc_ds["river_flow_rate"].values = obs_values
 
     return bc_ds
 
@@ -143,7 +142,7 @@ def NSE(modelled_values, observed_values):
 
     """
     mean_obs = np.mean(observed_values)
-    return 1 - np.sum((modelled_values - observed_values) ** 2) / np.sum((observed_values - mean_obs) ** 2)
+    return 1. - np.sum((modelled_values - observed_values) ** 2) / np.sum((observed_values - mean_obs) ** 2)
 
 
 def KGE(modelled_values, observed_values):

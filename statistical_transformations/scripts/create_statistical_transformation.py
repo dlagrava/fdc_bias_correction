@@ -18,9 +18,8 @@ def parse_arguments():
     parser.add_argument("-number_of_values", type=int, default=1001,
                         help="Number of bins for the statistical transformation (exceedance or quantiles)")
     parser.add_argument("-method", choices=["FDC", "QM"], default="FDC")
-    parser.add_argument("-cross_validation", action="store_true")
+    parser.add_argument("-FDC_type", choices=["alltime", "seasonal", "monthly", "crossvalidation"], default="alltime")
     parser.add_argument("-characteristics", type=str, default="")
-    parser.set_defaults(cross_validation=False)
     return parser.parse_args()
 
 
@@ -30,7 +29,7 @@ def main():
     observed_nc = args.observed_flows
     output_file_name = args.output_file_name
     number_of_values = args.number_of_values
-    cross_validation = args.cross_validation
+    fdc_type = args.FDC_type
     characteristics = args.characteristics
     method = args.method
 
@@ -45,10 +44,16 @@ def main():
         # FDC for simulation
         elif method == "FDC":
             # FDC has the possibility of having cross-validation set
-            if cross_validation:
+            if fdc_type == "crossvalidation":
                 dictionary_sim = FDC.create_FDC_dict_cross_validation(simulated_ds,
                                                                       number_of_exceedence=number_of_values,
                                                                       start_year=2000, end_year=2010)
+            elif fdc_type == "seasonal":
+                dictionary_sim = FDC.create_FDC_dict_sim_seasonal(simulated_ds,
+                                                                      number_of_exceedence=number_of_values)
+            elif fdc_type == "monthly":
+                dictionary_sim = FDC.create_FDC_dict_sim_monthly(simulated_ds,
+                                                                      number_of_exceedence=number_of_values)
             else:
                 dictionary_sim = FDC.create_FDC_dict_sim(simulated_ds, number_of_exceedence=number_of_values)
         # put the result
@@ -61,9 +66,19 @@ def main():
         if method == "QM":
             dictionary_obs = QQ.create_quantile_dict_obs(observed_ds, number_of_quantiles=number_of_values)
         elif method == "FDC":
-            dictionary_obs = FDC.create_FDC_dict_obs(observed_ds, number_of_exceedence=number_of_values,
-                                                     characteristics=characteristics)
-
+            if fdc_type == "crossvalidation":
+                dictionary_obs = FDC.create_FDC_dict_cross_validation(simulated_ds,
+                                                                      number_of_exceedence=number_of_values,
+                                                                      start_year=2000, end_year=2010)
+            elif fdc_type == "seasonal":
+                dictionary_obs = FDC.create_FDC_dict_obs_seasonal(observed_ds, number_of_exceedence=number_of_values,
+                                                         characteristics=characteristics)
+            elif fdc_type == "monthly":
+                dictionary_obs = FDC.create_FDC_dict_obs_monthly(observed_ds, number_of_exceedence=number_of_values,
+                                                         characteristics=characteristics)
+            else:
+                dictionary_obs = FDC.create_FDC_dict_obs(observed_ds, number_of_exceedence=number_of_values,
+                                                         characteristics=characteristics)
 
         result_dictionary.update(dictionary_obs)
 
